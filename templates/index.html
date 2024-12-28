@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Vision Compliments</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            margin-top: 20px;
+        }
+        #preview {
+            max-width: 400px;
+            margin: 20px 0;
+        }
+        #result {
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 5px;
+            min-height: 50px;
+        }
+        button {
+            margin: 10px;
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #cccccc;
+        }
+        #loading {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Gemini Vision Compliments</h1>
+    <div class="container">
+        <button id="cameraBtn">Take Photo</button>
+        <input type="file" id="fileInput" accept="image/*" style="display: none;">
+        <button id="uploadBtn">Upload Image</button>
+        <video id="video" style="display: none;"></video>
+        <canvas id="canvas" style="display: none;"></canvas>
+        <img id="preview" style="display: none;">
+        <div id="loading">Analyzing image...</div>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const preview = document.getElementById('preview');
+        const result = document.getElementById('result');
+        const loading = document.getElementById('loading');
+        const fileInput = document.getElementById('fileInput');
+
+        document.getElementById('cameraBtn').addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                video.style.display = 'block';
+                preview.style.display = 'none';
+                video.play();
+                
+                setTimeout(() => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    canvas.getContext('2d').drawImage(video, 0, 0);
+                    
+                    preview.src = canvas.toDataURL('image/jpeg');
+                    preview.style.display = 'block';
+                    video.style.display = 'none';
+                    
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                    analyzeImage(preview.src);
+                }, 3000);
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                result.textContent = 'Error accessing camera';
+            }
+        });
+
+        document.getElementById('uploadBtn').addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    video.style.display = 'none';
+                    analyzeImage(e.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        async function analyzeImage(imageData) {
+            loading.style.display = 'block';
+            result.textContent = '';
+            
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ image: imageData })
+                });
+                
+                const data = await response.json();
+                result.textContent = data.compliment;
+            } catch (err) {
+                console.error('Error analyzing image:', err);
+                result.textContent = 'Error analyzing image';
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
