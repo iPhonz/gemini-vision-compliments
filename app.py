@@ -1,1 +1,41 @@
-aW1wb3J0IG9zCmZyb20gZmxhc2sgaW1wb3J0IEZsYXNrLCByZW5kZXJfdGVtcGxhdGUsIHJlcXVlc3QsIGpzb25pZnkKZnJvbSBQSUwgaW1wb3J0IEltYWdlCmltcG9ydCBpbwppbXBvcnQgYmFzZTY0CmltcG9ydCBnb29nbGUuZ2VuZXJhdGl2ZWFpIGFzIGdlbmFpCmZyb20gZG90ZW52IGltcG9ydCBsb2FkX2RvdGVudgoKbG9hZF9kb3RlbnYoKQoKYXBwID0gRmxhc2soX19uYW1lX18pCgpnZW5haS5jb25maWd1cmUoYXBpX2tleT1vcy5nZXRlbnYoJ0dPT0dMRV9BUElfS0VZJykpCm1vZGVsID0gZ2VuYWkuR2VuZXJhdGl2ZU1vZGVsKCdnZW1pbmktcHJvLXZpc2lvbicpCgpkZWYgZ2VuZXJhdGVfY29tcGxpbWVudChpbWFnZV9kYXRhKToKICAgIHRyeToKICAgICAgICBpbWFnZV9ieXRlcyA9IGJhc2U2NC5iNjRkZWNvZGUoaW1hZ2VfZGF0YS5zcGxpdCgnLCcpWzFdKQogICAgICAgIGltYWdlID0gSW1hZ2Uub3Blbihpby5CeXRlc0lPKGltYWdlX2J5dGVzKSkKICAgICAgICByZXNwb25zZSA9IG1vZGVsLmdlbmVyYXRlX2NvbnRlbnQoWwogICAgICAgICAgICAnR2l2ZSBtZSBhIGtpbmQgYW5kIHNwZWNpZmljIGNvbXBsaW1lbnQgYWJvdXQgdGhpcyBpbWFnZS4gS2VlcCBpdCBjb25jaXNlIGFuZCBmcmllbmRseS4nLAogICAgICAgICAgICBpbWFnZQogICAgICAgIF0pCiAgICAgICAgcmV0dXJuIHJlc3BvbnNlLnRleHQKICAgIGV4Y2VwdCBFeGNlcHRpb24gYXMgZToKICAgICAgICByZXR1cm4gc3RyKGUpCgpAYXBwLnJvdXRlKCcvJykKZGVmIGhvbWUoKToKICAgIHJldHVybiByZW5kZXJfdGVtcGxhdGUoJ2luZGV4Lmh0bWwnKQoKQGFwcC5yb3V0ZSgnL2FuYWx5emUnLCBtZXRob2RzPVsnUE9TVCddKQpkZWYgYW5hbHl6ZSgpOgogICAgaW1hZ2VfZGF0YSA9IHJlcXVlc3QuanNvbi5nZXQoJ2ltYWdlJykKICAgIGlmIG5vdCBpbWFnZV9kYXRhOgogICAgICAgIHJldHVybiBqc29uaWZ5KHsnZXJyb3InOiAnTm8gaW1hZ2UgcHJvdmlkZWQnfSksIDQwMAogICAgY29tcGxpbWVudCA9IGdlbmVyYXRlX2NvbXBsaW1lbnQoaW1hZ2VfZGF0YSkKICAgIHJldHVybiBqc29uaWZ5KHsnY29tcGxpbWVudCc6IGNvbXBsaW1lbnR9KQoKaWYgX19uYW1lX18gPT0gJ19fbWFpbl9fJzoKICAgIGFwcC5ydW4oZGVidWc9VHJ1ZSk=
+import os
+from flask import Flask, render_template, request, jsonify
+from PIL import Image
+import io
+import base64
+import google.generativeai as genai
+from dotenv import load_dotenv
+
+load_dotenv()
+
+app = Flask(__name__)
+
+genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
+model = genai.GenerativeModel('gemini-pro-vision')
+
+def generate_compliment(image_data):
+    try:
+        image_bytes = base64.b64decode(image_data.split(',')[1])
+        image = Image.open(io.BytesIO(image_bytes))
+        response = model.generate_content([
+            'Give me a kind and specific compliment about this image. Keep it concise and friendly.',
+            image
+        ])
+        return response.text
+    except Exception as e:
+        return str(e)
+
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+@app.route('/analyze', methods=['POST'])
+def analyze():
+    image_data = request.json.get('image')
+    if not image_data:
+        return jsonify({'error': 'No image provided'}), 400
+    compliment = generate_compliment(image_data)
+    return jsonify({'compliment': compliment})
+
+if __name__ == '__main__':
+    app.run(debug=True)
